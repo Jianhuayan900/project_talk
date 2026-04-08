@@ -1,0 +1,1734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI助手群聊 - 实时版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        /* 主题变量定义 */
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: #2e2e2e;
+            --bg-sidebar-hover: #3a3a3a;
+            --bg-sidebar-active: #4a4a4a;
+            --bg-message-own: #409eff;
+            --bg-message-other: #f5f5f5;
+            --bg-input: #ffffff;
+            --bg-panel: #2a2a2a;
+            
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --text-sidebar: #ffffff;
+            --text-sidebar-secondary: #aaaaaa;
+            --text-message-own: #ffffff;
+            --text-message-other: #333333;
+            --text-message-sender: #333333;
+            --text-placeholder: #999999;
+            
+            --border-color: #e0e0e0;
+            --border-sidebar: #444444;
+            --border-input: #dcdfe6;
+            
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        /* 暗色主题 */
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-sidebar: #0d0d0d;
+            --bg-sidebar-hover: #1a1a1a;
+            --bg-sidebar-active: #252525;
+            --bg-message-own: #409eff;
+            --bg-message-other: #3a3a3a;
+            --bg-input: #2d2d2d;
+            --bg-panel: #1a1a1a;
+            
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-sidebar: #ffffff;
+            --text-sidebar-secondary: #888888;
+            --text-message-own: #ffffff;
+            --text-message-other: #e0e0e0;
+            --text-message-sender: #777777;
+            --text-placeholder: #666666;
+            
+            --border-color: #3a3a3a;
+            --border-sidebar: #333333;
+            --border-input: #4a4a4a;
+            
+            --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+            
+            --tag-bg: #667eea;
+            --tag-text: #ffffff;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            width: 100vw;
+            overflow: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* 自定义背景样式 */
+        .chat-main {
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-color 0.3s ease, background-image 0.3s ease;
+        }
+        
+        #app {
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+        
+        .chat-container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            background-color: var(--bg-primary);
+            transition: background-color 0.3s ease;
+        }
+        
+        .chat-sidebar {
+            width: 240px;
+            min-width: 240px;
+            max-width: 240px;
+            background-color: var(--bg-sidebar);
+            color: var(--text-sidebar);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-sidebar);
+            flex-shrink: 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-sidebar);
+        }
+        
+        .sidebar-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-sidebar);
+        }
+        
+        .connection-status {
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-sidebar-secondary);
+        }
+        
+        .connection-status.connected {
+            color: #67c23a;
+        }
+        
+        .connection-status.disconnected {
+            color: #f56c6c;
+        }
+        
+        .member-avatars {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-sidebar);
+            flex-wrap: wrap;
+        }
+        
+        .member-avatar-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .member-avatar-item:hover {
+            transform: scale(1.1);
+        }
+        
+        .member-avatar-small {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        .member-name-small {
+            font-size: 11px;
+            color: var(--text-sidebar-secondary);
+            text-align: center;
+            max-width: 50px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .tags-panel {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-sidebar);
+            background-color: var(--bg-sidebar-hover);
+            transition: background-color 0.3s ease;
+        }
+        
+        .tags-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .tags-header h4 {
+            margin: 0;
+            font-size: 14px;
+            color: var(--text-sidebar);
+        }
+        
+        .add-tag-btn {
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        
+        .add-tag-btn:hover {
+            background-color: #66b1ff;
+        }
+        
+        .tags-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .tag-item {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            background-color: #55aaff;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .tag-item:hover {
+            background-color: #66bbff;
+        }
+        
+        .tag-item.custom-tag {
+            background-color: #67c23a;
+        }
+        
+        .tag-item.custom-tag:hover {
+            background-color: #85ce61;
+        }
+        
+        .delete-tag {
+            margin-left: 4px;
+            cursor: pointer;
+            opacity: 0.7;
+            font-size: 14px;
+            line-height: 1;
+        }
+        
+        .delete-tag:hover {
+            opacity: 1;
+        }
+        
+        .settings-panel {
+            background-color: var(--bg-panel);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 12px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .settings-header h4 {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-sidebar);
+        }
+        
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .setting-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .setting-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            font-size: 12px;
+            color: var(--text-sidebar-secondary);
+            cursor: pointer;
+        }
+        
+        .setting-checkbox {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        
+        .setting-select {
+            padding: 4px 8px;
+            border: 1px solid var(--border-sidebar);
+            border-radius: 4px;
+            background-color: var(--bg-sidebar-hover);
+            color: var(--text-sidebar);
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .setting-select:hover {
+            border-color: var(--border-sidebar);
+            background-color: var(--bg-sidebar-active);
+        }
+        
+        .setting-select:focus {
+            border-color: var(--border-sidebar);
+        }
+        
+        .setting-color-input {
+            width: 40px;
+            height: 24px;
+            border: 1px solid var(--border-sidebar);
+            border-radius: 4px;
+            background-color: var(--bg-sidebar-hover);
+            cursor: pointer;
+            padding: 2px;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        
+        .setting-color-input:hover {
+            border-color: var(--border-sidebar);
+            background-color: var(--bg-sidebar-active);
+        }
+        
+        .setting-btn {
+            padding: 4px 12px;
+            background-color: var(--bg-sidebar-hover);
+            color: var(--text-sidebar);
+            border: 1px solid var(--border-sidebar);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        
+        .setting-btn:hover {
+            background-color: var(--bg-sidebar-active);
+            border-color: var(--border-sidebar);
+        }
+        
+        .setting-btn-danger {
+            background-color: #f56c6c;
+            color: white;
+            border-color: #f56c6c;
+        }
+        
+        .setting-btn-danger:hover {
+            background-color: #f78989;
+            border-color: #f78989;
+        }
+        
+        .member-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        
+        .member-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .member-item:hover {
+            background-color: var(--bg-sidebar-hover);
+        }
+        
+        .member-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .member-info {
+            flex: 1;
+        }
+        
+        .member-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-sidebar);
+        }
+        
+        .member-status {
+            font-size: 11px;
+            color: var(--text-sidebar-secondary);
+        }
+        
+        .add-member-btn {
+            margin: 12px;
+            padding: 8px 12px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .add-member-btn:hover {
+            background-color: #66b1ff;
+        }
+        
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-secondary);
+            overflow: hidden;
+            min-width: 0;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+        
+        .chat-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-primary);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .chat-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .chat-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .time-range-selector {
+            display: flex;
+            align-items: center;
+        }
+        
+        .time-range-select {
+            padding: 6px 12px;
+            border: 1px solid var(--border-input);
+            border-radius: 4px;
+            background-color: var(--bg-input);
+            color: var(--text-primary);
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+        }
+        
+        .time-range-select:hover {
+            border-color: #409eff;
+        }
+        
+        .time-range-select:focus {
+            border-color: #409eff;
+        }
+        
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-width: 0;
+        }
+        
+        .message {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        
+        .message-own {
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .message-content {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .message-sender {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: var(--text-message-sender);
+        }
+        
+        .message-own .message-sender {
+            text-align: right;
+        }
+        
+        .message-text {
+            background-color: var(--bg-message-other);
+            color: var(--text-message-other);
+            padding: 10px 14px;
+            border-radius: 18px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            max-width: 100%;
+            width: fit-content;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .message-own .message-text {
+            background-color: var(--bg-message-own);
+            color: var(--text-message-own);
+        }
+        
+        /* 字体大小设置 */
+        .font-size-small .message-text {
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        
+        .font-size-medium .message-text {
+            font-size: 14px;
+            padding: 10px 14px;
+        }
+        
+        .font-size-large .message-text {
+            font-size: 16px;
+            padding: 12px 16px;
+        }
+        
+        .font-size-small .message-sender,
+        .font-size-small .message-time {
+            font-size: 11px;
+        }
+        
+        .font-size-medium .message-sender,
+        .font-size-medium .message-time {
+            font-size: 13px;
+        }
+        
+        .font-size-large .message-sender,
+        .font-size-large .message-time {
+            font-size: 15px;
+        }
+        
+        .message-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .message-own .message-time {
+            text-align: right;
+        }
+        
+        .message-tags {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .message-tag {
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            background-color: var(--tag-bg);
+            color: var(--tag-text);
+        }
+        
+        .message-tag.custom {
+            background-color: #667eea;
+            color: #fff;
+        }
+        
+        .chat-input-area {
+            padding: 12px 16px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            min-width: 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        .input-wrapper {
+            position: relative;
+            overflow: visible;
+        }
+        
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-input);
+            border-radius: 4px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+            font-size: 14px;
+            background-color: var(--bg-input);
+            color: var(--text-primary);
+            transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #409eff;
+        }
+        
+        textarea::placeholder {
+            color: var(--text-placeholder);
+        }
+        
+        .input-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            min-height: 40px;
+            flex-shrink: 0;
+            padding: 4px 0;
+        }
+        
+        .left-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+            overflow: visible;
+        }
+        
+        .tag-button {
+            position: relative;
+            padding: 6px 12px;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-input);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            min-width: 60px;
+            height: 32px;
+            color: var(--text-primary);
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+        
+        .tag-button:hover {
+            background-color: #ecf5ff;
+            border-color: #b3d8ff;
+            color: #409eff;
+        }
+        
+        .tag-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .tag-dropdown {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            min-width: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 4px;
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-primary);
+            transition: background-color 0.2s, color 0.2s;
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--bg-primary);
+        }
+        
+        .dropdown-item.selected {
+            background-color: #ecf5ff;
+            color: #409eff;
+        }
+        
+        .dropdown-item.add-custom {
+            border-top: 1px solid var(--border-color);
+            font-weight: 500;
+            transition: border-color 0.3s ease;
+        }
+        
+        .checkmark {
+            color: #409eff;
+            font-weight: bold;
+        }
+        
+        .selected-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            flex: 0 1 auto;
+            min-width: 0;
+        }
+        
+        .selected-tag {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            background-color: #667eea;
+            color: #fff;
+        }
+        
+        .selected-tag .remove-tag {
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+        
+        .selected-tag .remove-tag:hover {
+            opacity: 1;
+        }
+        
+        .send-button {
+            padding: 6px 16px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            min-width: 60px;
+            height: 32px;
+        }
+        
+        .send-button:hover:not(:disabled) {
+            background-color: #66b1ff;
+        }
+        
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .mention-popup {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            max-height: 180px;
+            overflow-y: auto;
+            width: 260px;
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .mention-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: var(--text-primary);
+            transition: background-color 0.2s, color 0.2s;
+        }
+        
+        .mention-item.active {
+            background-color: var(--bg-primary);
+        }
+        
+        .mention-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        
+        .mention-name {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="chat-container">
+            <div class="chat-sidebar">
+                <div class="sidebar-header">
+                    <h3>群聊成员 ({{ members.length }})</h3>
+                </div>
+                
+                <div class="connection-status" :class="{ connected: connected, disconnected: !connected }">
+                    {{ connectionStatus }}
+                </div>
+                
+                <div class="member-avatars">
+                    <div
+                        v-for="member in members"
+                        :key="member.id"
+                        class="member-avatar-item"
+                        @click="mentionMember(member)"
+                    >
+                        <div class="member-avatar-small">{{ member.avatar }}</div>
+                        <div class="member-name-small">{{ member.name }}</div>
+                    </div>
+                </div>
+                
+                <button class="add-member-btn" @click="addMember">
+                    + 添加成员
+                </button>
+                
+                <div class="tags-panel">
+                    <div class="tags-header">
+                        <h4>常用标签</h4>
+                        <button class="add-tag-btn" @click="addCustomTag">+</button>
+                    </div>
+                    <div class="tags-list">
+                        <span 
+                            v-for="tag in defaultTags" 
+                            :key="'default-'+tag"
+                            class="tag-item"
+                            @click="toggleTag(tag)"
+                        >
+                            {{ tag }}
+                        </span>
+                        <span 
+                            v-for="tag in customTags" 
+                            :key="'custom-'+tag"
+                            class="tag-item custom-tag"
+                            @click="toggleTag(tag)"
+                        >
+                            {{ tag }}
+                            <span class="delete-tag" @click.stop="deleteCustomTag(tag)">×</span>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="settings-panel">
+                    <div class="settings-header">
+                        <h4>通用设置</h4>
+                    </div>
+                    <div class="settings-list">
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span>主题模式</span>
+                                <select v-model="settings.theme" class="setting-select" @change="changeTheme">
+                                    <option value="light">亮色</option>
+                                    <option value="dark">暗色</option>
+                                    <option value="system">随系统</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" v-model="settings.autoScroll" class="setting-checkbox">
+                                <span>自动滚动</span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" v-model="settings.showTimestamp" class="setting-checkbox">
+                                <span>显示时间戳</span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <label class="setting-label">
+                                <input type="checkbox" v-model="settings.soundEnabled" class="setting-checkbox">
+                                <span>消息提示音</span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span>字体大小</span>
+                                <select v-model="settings.fontSize" class="setting-select">
+                                    <option value="small">小</option>
+                                    <option value="medium">中</option>
+                                    <option value="large">大</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span>背景颜色</span>
+                                <input 
+                                    type="color" 
+                                    v-model="settings.bgColor" 
+                                    class="setting-color-input"
+                                    @input="updateBackground"
+                                >
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-label">
+                                <span>背景图片</span>
+                                <button class="setting-btn" @click="uploadBackgroundImage">
+                                    {{ settings.bgImage ? '更换图片' : '上传图片' }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="setting-item" v-if="settings.bgImage">
+                            <button class="setting-btn setting-btn-danger" @click="clearBackgroundImage">
+                                清除背景图片
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-main" :class="fontSizeClass">
+                <div class="chat-header">
+                    <div class="header-left">
+                        <h3>AI助手群聊</h3>
+                        <span class="chat-status">{{ messages.length }} 条消息</span>
+                    </div>
+                    <div class="time-range-selector">
+                        <select v-model="selectedTimeRange" @change="loadHistoryMessages" class="time-range-select">
+                            <option value="all">全部记录</option>
+                            <option value="month">最近一月</option>
+                            <option value="twoweeks">最近两周</option>
+                            <option value="week">最近一周</option>
+                            <option value="day">最近一天</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="messages-container" ref="messagesContainer">
+                    <div 
+                        v-for="message in messages" 
+                        :key="message.id"
+                        :class="['message', { 'message-own': message.isSelf }]"
+                    >
+                        <div class="message-avatar">{{ message.avatar }}</div>
+                        <div class="message-content">
+                            <div class="message-sender">{{ message.senderName }}</div>
+                            <div class="message-text" v-html="formatMessage(message.content)"></div>
+                            <div class="message-tags" v-if="message.tags && message.tags.length > 0">
+                                <span 
+                                    v-for="tag in message.tags"
+                                    :key="tag"
+                                    :class="['message-tag', { custom: !defaultTags.includes(tag) }]"
+                                >
+                                    {{ tag }}
+                                </span>
+                            </div>
+                            <div class="message-time" v-if="settings.showTimestamp">{{ formatTime(message.timestamp) }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <div 
+                            v-if="showMentionPopup"
+                            class="mention-popup"
+                        >
+                            <div
+                                v-for="(member, index) in members.filter(m => m.name !== '用户')"
+                                :key="member.id"
+                                :class="['mention-item', { active: mentionIndex === index }]"
+                                @click="selectMention(member)"
+                                @mouseenter="mentionIndex = index"
+                            >
+                                <div class="mention-avatar">{{ member.avatar }}</div>
+                                <div class="mention-name">{{ member.name }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="input-container">
+                            <textarea
+                                v-model="inputMessage"
+                                placeholder="输入消息... (使用@提及成员)"
+                                @input="handleInput"
+                                @keydown="handleKeydown"
+                                ref="inputRef"
+                                :disabled="loading"
+                            ></textarea>
+                            
+                            <div class="input-actions">
+                                <div class="left-actions">
+                                    <button 
+                                        type="button" 
+                                        class="tag-button"
+                                        @click="showTagDropdown = !showTagDropdown"
+                                        :disabled="loading"
+                                    >
+                                        标签
+                                    </button>
+                                    
+                                    <div 
+                                        v-if="showTagDropdown"
+                                        class="tag-dropdown"
+                                    >
+                                        <div
+                                            v-for="tag in allTags"
+                                            :key="tag"
+                                            :class="['dropdown-item', { selected: messageTags.includes(tag) }]"
+                                            @click="handleTagClick(tag)"
+                                        >
+                                            {{ tag }}
+                                            <span v-if="messageTags.includes(tag)" class="checkmark">✓</span>
+                                        </div>
+                                        <div class="dropdown-item add-custom" @click="addCustomTagForMessage">
+                                            + 自定义
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="selected-tags" v-if="messageTags.length > 0">
+                                        <span 
+                                            v-for="tag in messageTags"
+                                            :key="tag"
+                                            class="selected-tag"
+                                        >
+                                            {{ tag }}
+                                            <span class="remove-tag" @click="removeMessageTag(tag)">×</span>
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                                <button
+                                    type="button"
+                                    class="send-button"
+                                    @click="sendMessage"
+                                    :disabled="!inputMessage.trim() || loading"
+                                >
+                                    发送
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const { createApp, ref, computed, onMounted, nextTick, onUnmounted, watch } = Vue;
+
+        const app = createApp({
+            setup() {
+                const members = ref([]);
+                const messages = ref([]);
+                const inputMessage = ref('');
+                const loading = ref(false);
+                const messagesContainer = ref(null);
+                const inputRef = ref(null);
+                const showMentionPopup = ref(false);
+                const mentionIndex = ref(0);
+                const showTagDropdown = ref(false);
+                
+                // WebSocket 相关
+                const ws = ref(null);
+                const connected = ref(false);
+                const connectionStatus = ref('正在连接...');
+                
+                // 标签相关
+                const defaultTags = ref(['重要', '问题', '建议', '代码', '文档', '其他']);
+                const customTags = ref([]);
+                const selectedTags = ref([]);
+                const messageTags = ref([]);
+                
+                // 时间范围选择
+                const selectedTimeRange = ref('all');
+                
+                // 设置相关
+                const settings = ref({
+                    theme: 'system',
+                    autoScroll: true,
+                    showTimestamp: true,
+                    soundEnabled: false,
+                    fontSize: 'medium',
+                    bgColor: '#f5f5f5',
+                    bgImage: ''
+                });
+                
+                // 从localStorage加载设置
+                const loadSettings = () => {
+                    try {
+                        const saved = localStorage.getItem('chatSettings');
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            settings.value = { ...settings.value, ...parsed };
+                        }
+                    } catch (e) {
+                        console.error('加载设置失败:', e);
+                    }
+                };
+                
+                // 切换主题
+                const changeTheme = () => {
+                    const theme = settings.value.theme;
+                    if (theme === 'system') {
+                        // 移除所有主题属性，使用系统默认
+                        document.documentElement.removeAttribute('data-theme');
+                        
+                        // 监听系统主题变化
+                        if (window.matchMedia) {
+                            const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+                            const updateSystemTheme = (e) => {
+                                if (settings.value.theme === 'system') {
+                                    if (e.matches) {
+                                        document.documentElement.setAttribute('data-theme', 'dark');
+                                    } else {
+                                        document.documentElement.removeAttribute('data-theme');
+                                    }
+                                }
+                            };
+                            
+                            darkModeQuery.addEventListener('change', updateSystemTheme);
+                            
+                            // 初始化系统主题
+                            if (darkModeQuery.matches) {
+                                document.documentElement.setAttribute('data-theme', 'dark');
+                            }
+                        }
+                    } else if (theme === 'dark') {
+                        document.documentElement.setAttribute('data-theme', 'dark');
+                    } else {
+                        document.documentElement.removeAttribute('data-theme');
+                    }
+                };
+                
+                // 保存设置到localStorage
+                const saveSettings = () => {
+                    try {
+                        localStorage.setItem('chatSettings', JSON.stringify(settings.value));
+                    } catch (e) {
+                        console.error('保存设置失败:', e);
+                    }
+                };
+                
+                // 监听设置变化
+                watch(settings, () => {
+                    saveSettings();
+                    updateBackground();
+                    applyBackgroundImage();
+                }, { deep: true });
+                
+                // 从localStorage加载自定义标签
+                const loadCustomTags = () => {
+                    try {
+                        const saved = localStorage.getItem('chatCustomTags');
+                        console.log('加载的自定义标签:', saved);
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            if (Array.isArray(parsed)) {
+                                customTags.value = parsed;
+                                console.log('成功加载自定义标签:', customTags.value);
+                            }
+                        } else {
+                            console.log('没有找到保存的自定义标签');
+                        }
+                    } catch (e) {
+                        console.error('加载自定义标签失败:', e);
+                    }
+                };
+                
+                // 保存自定义标签到localStorage
+                const saveCustomTags = () => {
+                    try {
+                        localStorage.setItem('chatCustomTags', JSON.stringify(customTags.value));
+                        console.log('成功保存自定义标签:', customTags.value);
+                    } catch (e) {
+                        console.error('保存自定义标签失败:', e);
+                        alert('保存标签失败，可能是浏览器限制了存储空间');
+                    }
+                };
+                
+                const allTags = computed(() => {
+                    return [...defaultTags.value, ...customTags.value];
+                });
+                
+                // 根据字体大小设置返回样式类
+                const fontSizeClass = computed(() => {
+                    return `font-size-${settings.value.fontSize}`;
+                });
+                
+                // 更新背景
+                const updateBackground = () => {
+                    const chatMain = document.querySelector('.chat-main');
+                    if (chatMain) {
+                        chatMain.style.backgroundColor = settings.value.bgColor;
+                    }
+                };
+                
+                // 上传背景图片
+                const uploadBackgroundImage = () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = 'image/*';
+                    input.onchange = (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                settings.value.bgImage = event.target.result;
+                                applyBackgroundImage();
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                    };
+                    input.click();
+                };
+                
+                // 应用背景图片
+                const applyBackgroundImage = () => {
+                    const chatMain = document.querySelector('.chat-main');
+                    if (chatMain && settings.value.bgImage) {
+                        chatMain.style.backgroundImage = `url(${settings.value.bgImage})`;
+                    }
+                };
+                
+                // 清除背景图片
+                const clearBackgroundImage = () => {
+                    settings.value.bgImage = '';
+                    const chatMain = document.querySelector('.chat-main');
+                    if (chatMain) {
+                        chatMain.style.backgroundImage = 'none';
+                    }
+                };
+                
+                // 播放提示音
+                const playNotificationSound = () => {
+                    if (!settings.value.soundEnabled) return;
+                    
+                    try {
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const oscillator = audioContext.createOscillator();
+                        const gainNode = audioContext.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+                        
+                        oscillator.frequency.value = 800;
+                        oscillator.type = 'sine';
+                        
+                        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                        
+                        oscillator.start(audioContext.currentTime);
+                        oscillator.stop(audioContext.currentTime + 0.3);
+                    } catch (e) {
+                        console.error('播放提示音失败:', e);
+                    }
+                };
+
+                // 初始化成员
+                const initMembers = () => {
+                    members.value = [
+                        {
+                            id: 'glm46',
+                            name: 'GLM-4.6',
+                            avatar: '🤖',
+                            status: '在线',
+                            description: 'Z.ai训练的大语言模型'
+                        },
+                        {
+                            id: 'copilot',
+                            name: 'Copilot',
+                            avatar: '✈️',
+                            status: '在线',
+                            description: 'GitHub Copilot AI编程助手'
+                        },
+                        {
+                            id: 'user',
+                            name: '用户',
+                            avatar: '👤',
+                            status: '在线',
+                            description: '您自己'
+                        }
+                    ];
+                };
+
+                const connectWebSocket = () => {
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    const wsUrl = `${protocol}//localhost:8001/ws`;
+                    
+                    try {
+                        ws.value = new WebSocket(wsUrl);
+                        
+                        ws.value.onopen = () => {
+                            console.log('WebSocket连接已建立');
+                            connected.value = true;
+                            connectionStatus.value = '已连接';
+                        };
+                        
+                        ws.value.onmessage = (event) => {
+                            const messageData = JSON.parse(event.data);
+                            messages.value.push(messageData);
+                            playNotificationSound();
+                            nextTick(() => {
+                                scrollToBottom();
+                            });
+                        };
+                        
+                        ws.value.onclose = () => {
+                            console.log('WebSocket连接已关闭');
+                            connected.value = false;
+                            connectionStatus.value = '连接已断开';
+                            // 尝试重连
+                            setTimeout(connectWebSocket, 3000);
+                        };
+                        
+                        ws.value.onerror = (error) => {
+                            console.error('WebSocket错误:', error);
+                            connected.value = false;
+                            connectionStatus.value = '连接错误';
+                        };
+                    } catch (error) {
+                        console.error('WebSocket连接失败:', error);
+                        connected.value = false;
+                        connectionStatus.value = '连接失败';
+                        // 尝试重连
+                        setTimeout(connectWebSocket, 3000);
+                    }
+                };
+
+                const sendMessage = () => {
+                    if (!inputMessage.value.trim() || loading.value) return;
+                    
+                    const content = inputMessage.value.trim();
+                    const tags = [...messageTags.value]; // 复制当前标签
+                    
+                    // 创建消息对象
+                    const messageData = {
+                        id: 'msg_' + Date.now(),
+                        content: content,
+                        isSelf: true,
+                        senderName: '用户',
+                        avatar: '👤',
+                        timestamp: new Date().toISOString(),
+                        tags: tags.length > 0 ? tags : []
+                    };
+                    
+                    // 通过WebSocket发送消息
+                    if (ws.value && ws.value.readyState === WebSocket.OPEN) {
+                        ws.value.send(JSON.stringify(messageData));
+                        inputMessage.value = '';
+                        messageTags.value = []; // 清空消息标签
+                    } else {
+                        alert('WebSocket未连接');
+                    }
+                };
+
+                const scrollToBottom = () => {
+                    nextTick(() => {
+                        if (messagesContainer.value && settings.value.autoScroll) {
+                            messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+                        }
+                    });
+                };
+
+                const formatTime = (time) => {
+                    if (!time) return '';
+                    const date = new Date(time);
+                    const now = new Date();
+                    const diff = now - date;
+                    
+                    if (diff < 60000) {
+                        return '刚刚';
+                    } else if (diff < 3600000) {
+                        return `${Math.floor(diff / 60000)}分钟前`;
+                    } else if (diff < 86400000) {
+                        return `${Math.floor(diff / 3600000)}小时前`;
+                    } else if (diff < 604800000) {
+                        return `${Math.floor(diff / 86400000)}天前`;
+                    } else {
+                        return date.toLocaleDateString('zh-CN');
+                    }
+                };
+
+                const formatMessage = (content) => {
+                    // 将@用户名转换为粗体
+                    return content.replace(/@(\S+)/g, '<strong>@$1</strong>');
+                };
+
+                const addMember = () => {
+                    const avatars = [
+                        '🤖', '✈️', '👤', '🎨', '🎭', '🎪', '🎯', '🎲', '🎸', '🎹',
+                        '🎺', '🎻', '🎼', '🦊', '🦋', '🦌', '🦍', '🦎', '🦏', '🦐',
+                        '🦑', '🦒', '🦓', '🐱', '🐶', '🐸', '🐹', '🐻', '🐼', '🐽',
+                        '🐾', '🐿', '🦀', '🌟', '⭐', '🌙', '🌛', '🌜', '🌝', '🌞',
+                        '🌠', '🌡', '🔥', '💧', '🌪', '🌫', '🌬', '🌭', '🌮', '🌯',
+                        '栗', '🌱'
+                    ];
+                    const randomAvatar = avatars[Math.floor(Math.random() * avatars.length)];
+                    
+                    const name = prompt('请输入新成员的名称');
+                    if (name && name.trim()) {
+                        const newMember = {
+                            id: 'member_' + Date.now(),
+                            name: name.trim(),
+                            avatar: randomAvatar,
+                            status: '在线',
+                            description: '自定义成员'
+                        };
+                        
+                        members.value.push(newMember);
+                        alert(`已添加成员：${newMember.name}（头像：${randomAvatar}）`);
+                    }
+                };
+
+                const toggleTag = (tagName) => {
+                    const index = selectedTags.value.indexOf(tagName);
+                    if (index === -1) {
+                        selectedTags.value.push(tagName);
+                    } else {
+                        selectedTags.value.splice(index, 1);
+                    }
+                };
+
+                const deleteCustomTag = (tagName) => {
+                    if (confirm(`确定要删除标签"${tagName}"吗？`)) {
+                        const index = customTags.value.indexOf(tagName);
+                        if (index !== -1) {
+                            customTags.value.splice(index, 1);
+                            saveCustomTags();
+                        }
+                    }
+                };
+
+                const addCustomTag = () => {
+                    const tagName = prompt('请输入新标签名称（最多10个字符）');
+                    if (tagName && tagName.trim() && tagName.length <= 10) {
+                        if (!allTags.value.includes(tagName.trim())) {
+                            customTags.value.push(tagName.trim());
+                            saveCustomTags();
+                            alert(`已添加标签：${tagName.trim()}`);
+                        } else {
+                            alert('标签已存在');
+                        }
+                    }
+                };
+
+                const addCustomTagForMessage = () => {
+                    const tagName = prompt('请输入新标签名称（最多10个字符）');
+                    if (tagName && tagName.trim() && tagName.length <= 10) {
+                        if (!allTags.value.includes(tagName.trim())) {
+                            customTags.value.push(tagName.trim());
+                            saveCustomTags();
+                            messageTags.value.push(tagName.trim());
+                            alert(`已添加并选中标签：${tagName.trim()}`);
+                        } else {
+                            messageTags.value.push(tagName.trim());
+                            alert(`已选中标签：${tagName.trim()}`);
+                        }
+                    }
+                };
+
+                const handleTagClick = (tag) => {
+                    const index = messageTags.value.indexOf(tag);
+                    if (index === -1) {
+                        messageTags.value.push(tag);
+                    } else {
+                        messageTags.value.splice(index, 1);
+                    }
+                };
+
+                const removeMessageTag = (tag) => {
+                    const index = messageTags.value.indexOf(tag);
+                    if (index !== -1) {
+                        messageTags.value.splice(index, 1);
+                    }
+                };
+
+                const mentionMember = (member) => {
+                    const mentionText = `@${member.name} `;
+                    const textarea = inputRef.value;
+                    if (textarea) {
+                        const startPos = textarea.selectionStart;
+                        const endPos = textarea.selectionEnd;
+                        const text = inputMessage.value;
+                        
+                        inputMessage.value = text.substring(0, startPos) + mentionText + text.substring(endPos);
+                        
+                        // 重新聚焦并设置光标位置
+                        setTimeout(() => {
+                            textarea.focus();
+                            const newPos = startPos + mentionText.length;
+                            textarea.setSelectionRange(newPos, newPos);
+                        }, 0);
+                    }
+                    showMentionPopup.value = false;
+                };
+
+                const handleInput = (e) => {
+                    const value = e.target.value;
+                    const cursorPosition = e.target.selectionStart;
+                    
+                    // 检查光标前是否有@
+                    if (cursorPosition > 0 && value.charAt(cursorPosition - 1) === '@') {
+                        showMentionPopup.value = true;
+                        mentionIndex.value = 0;
+                    } else {
+                        showMentionPopup.value = false;
+                    }
+                };
+
+                const handleKeydown = (e) => {
+                    if (showMentionPopup.value) {
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            mentionIndex.value = Math.min(mentionIndex.value + 1, members.value.filter(m => m.name !== '用户').length - 1);
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            mentionIndex.value = Math.max(mentionIndex.value - 1, 0);
+                        } else if (e.key === 'Enter') {
+                            e.preventDefault();
+                            selectMention(members.value.filter(m => m.name !== '用户')[mentionIndex.value]);
+                        } else if (e.key === 'Escape') {
+                            showMentionPopup.value = false;
+                        }
+                    } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                };
+
+                const selectMention = (member) => {
+                    const mentionText = `@${member.name} `;
+                    const textarea = inputRef.value;
+                    if (textarea) {
+                        // 找到最后一个@的位置
+                        const text = inputMessage.value;
+                        const atPosition = text.lastIndexOf('@');
+                        
+                        if (atPosition !== -1) {
+                            inputMessage.value = text.substring(0, atPosition) + mentionText + text.substring(text.length);
+                        } else {
+                            inputMessage.value += mentionText;
+                        }
+                        
+                        // 设置光标到末尾
+                        setTimeout(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(inputMessage.value.length, inputMessage.value.length);
+                        }, 0);
+                    }
+                    showMentionPopup.value = false;
+                };
+
+                const loadHistoryMessages = async () => {
+                    try {
+                        const timeRange = selectedTimeRange.value;
+                        const url = timeRange === 'all' 
+                            ? 'http://localhost:8001/sessions' 
+                            : `http://localhost:8001/sessions?time_range=${timeRange}`;
+                        
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        
+                        // 查找群聊消息会话
+                        const chatSession = data.sessions.find(session => session.title === '群聊消息');
+                        
+                        if (chatSession && chatSession.messages) {
+                            // 转换消息格式以适配前端显示
+                            const formattedMessages = chatSession.messages.map(msg => ({
+                                id: msg.id,
+                                content: msg.content,
+                                isSelf: msg.role === 'user',
+                                senderName: msg.role === 'user' ? '用户' : 'GLM-4.6',
+                                avatar: msg.role === 'user' ? '👤' : '🤖',
+                                timestamp: msg.timestamp,
+                                tags: msg.tags
+                            }));
+                            
+                            messages.value = formattedMessages;
+                            console.log(`已加载 ${formattedMessages.length} 条历史消息（时间范围：${timeRange}）`);
+                            
+                            // 滚动到底部
+                            nextTick(() => {
+                                scrollToBottom();
+                            });
+                        } else {
+                            messages.value = [];
+                            console.log('未找到群聊消息会话');
+                        }
+                    } catch (error) {
+                        console.error('加载历史消息失败:', error);
+                    }
+                };
+
+                onMounted(() => {
+                    initMembers();
+                    loadCustomTags();
+                    loadSettings();
+                    changeTheme();
+                    updateBackground();
+                    applyBackgroundImage();
+                    loadHistoryMessages();
+                    connectWebSocket();
+                    
+                    // 点击外部关闭提及弹窗和标签下拉菜单
+                    document.addEventListener('click', (e) => {
+                        if (!e.target.closest('.mention-popup') && !e.target.closest('textarea')) {
+                            showMentionPopup.value = false;
+                        }
+                        if (!e.target.closest('.tag-dropdown') && !e.target.closest('.tag-button')) {
+                            showTagDropdown.value = false;
+                        }
+                    });
+                });
+
+                onUnmounted(() => {
+                    if (ws.value) {
+                        ws.value.close();
+                    }
+                });
+
+                return {
+                    members,
+                    messages,
+                    inputMessage,
+                    loading,
+                    messagesContainer,
+                    inputRef,
+                    showMentionPopup,
+                    mentionIndex,
+                    showTagDropdown,
+                    connected,
+                    connectionStatus,
+                    defaultTags,
+                    customTags,
+                    selectedTags,
+                    messageTags,
+                    allTags,
+                    selectedTimeRange,
+                    settings,
+                    fontSizeClass,
+                    playNotificationSound,
+                    sendMessage,
+                    formatTime,
+                    formatMessage,
+                    handleInput,
+                    handleKeydown,
+                    selectMention,
+                    addMember,
+                    toggleTag,
+                    deleteCustomTag,
+                    addCustomTag,
+                    addCustomTagForMessage,
+                    handleTagClick,
+                    removeMessageTag,
+                    mentionMember,
+                    changeTheme,
+                    updateBackground,
+                    uploadBackgroundImage,
+                    applyBackgroundImage,
+                    clearBackgroundImage
+                };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+</html>
